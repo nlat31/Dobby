@@ -4,6 +4,11 @@
 #include <stddef.h>
 #include "pac_kit.h"
 
+
+#if defined(ANDROID)
+#include <unistd.h>
+#include <sys/mman.h>
+#endif
 #include "PlatformUnifiedInterface/platform.h"
 
 #if defined(__arm64e__) && __has_feature(ptrauth_calls)
@@ -36,11 +41,13 @@ template <typename T> inline T arm64e_pac_strip_and_sign(T &addr) {
 namespace android {
 inline void make_memory_readable(void *address, size_t size) {
 #if defined(ANDROID)
-  auto page = (void *)ALIGN_FLOOR(address, OSMemory::PageSize());
-  if (!OSMemory::SetPermission(page, OSMemory::PageSize(), kReadExecute)) {
-    return;
-  }
+  long page_size = sysconf(_SC_PAGESIZE);
+  if (page_size <= 0) return;
+  (void)size;
+  void *page = (void *)ALIGN_FLOOR(address, (size_t)page_size);
+  mprotect(page, (size_t)page_size, PROT_READ | PROT_EXEC);
 #endif
+
 }
 } // namespace android
 } // namespace features
